@@ -1,0 +1,247 @@
+function createSpreadsheetTrigger() {
+  // Deletes all triggers in the current project.
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    ScriptApp.deleteTrigger(triggers[i]);
+  }
+
+  const SS = SpreadsheetApp.getActive();
+  ScriptApp.newTrigger('alPulsarBoton')
+      .forSpreadsheet(SS)
+      .onEdit()
+      .create();
+
+  ScriptApp.newTrigger('alAbrir')
+      .forSpreadsheet(SS)
+      .onOpen()
+      .create();
+
+  var datos_sheet = SS.getSheets()[0];
+  datos_sheet.getRange("K5").setValue("Ficha habilitada");
+}
+
+function alPulsarBoton(e) {
+  var sheet = SpreadsheetApp.getActiveSheet();
+  var celdaMensaje = sheet.getRange("H2");
+
+  if (e.range.getA1Notation() == "G2") {
+    if (e.value == "Completar nombres/Códigos") {
+      celdaMensaje.setValue("Completando nombres o códigos que falten...");
+      botonCompletarNyC();
+    } else if (e.value == "Crear Nuevo PT") {
+      celdaMensaje.setValue("Creando nueva Ficha PT...");
+      alAbrir();
+      botonCompletarNyC();
+      botonCrearNuevoPT();
+    } else if (e.value == "Reset") {
+      celdaMensaje.setValue("Reseteando campos...");
+      botonReset();
+    }
+    
+    celdaMensaje.setValue("");
+    e.range.setValue("");
+  }
+}
+
+function alAbrir() {
+  resetMAYaExistente();
+  resetMPYaExistente();
+};
+
+function resetMAYaExistente() {
+  var SS_MA = SpreadsheetApp.openById("1XH4-zFY0X14JuJNohEVx72i1LEkPSbZfL0-VhxN6O3s");  
+  var sheetResumen = SS_MA.getSheets()[2];
+
+  var SS = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = SS.getSheets()[0];
+  var sheetMetadatos = SS.getSheets()[1];
+
+  var cell_codigo = sheet.getRange("B12:B300");
+  var cell_nombre = sheet.getRange("C12:C300");
+
+  var numero_filas = 4+parseInt(sheetResumen.getRange("D2").getValue());
+  sheetMetadatos.getRange("A5:A"+numero_filas).setValues(sheetResumen.getRange("B5:B"+numero_filas).getValues());
+  var rango_codigo = sheetMetadatos.getRange("A1:A"+numero_filas);
+  sheetMetadatos.getRange("B5:B"+numero_filas).setValues(sheetResumen.getRange("C5:C"+numero_filas).getValues());
+  var rango_nombre = sheetMetadatos.getRange("B1:B"+numero_filas);
+
+  var rule_codigo = SpreadsheetApp.newDataValidation()
+    .requireValueInRange(rango_codigo, true)
+    .setAllowInvalid(false)
+    .build();
+  cell_codigo.setDataValidation(rule_codigo);
+
+  var rule_nombre = SpreadsheetApp.newDataValidation()
+    .requireValueInRange(rango_nombre, true)
+    .setAllowInvalid(false)
+    .build();
+  cell_nombre.setDataValidation(rule_nombre);
+}
+
+function resetMPYaExistente() {
+  var SS_MP = SpreadsheetApp.openById("1IM73U1v3U-kfL3HzYasRI3jjSbtYZA8xT8vOgKPmPkQ");  
+  var sheetResumen = SS_MP.getSheets()[2];
+
+  var SS = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = SS.getSheets()[0];
+  var sheetMetadatos = SS.getSheets()[1];
+
+  var cell_codigo = sheet.getRange("F12:F300");
+  var cell_nombre = sheet.getRange("G12:G300");
+
+  var numero_filas = 4+parseInt(sheetResumen.getRange("D2").getValue());
+  sheetMetadatos.getRange("D5:D"+numero_filas).setValues(sheetResumen.getRange("B5:B"+numero_filas).getValues());
+  var rango_codigo = sheetMetadatos.getRange("D1:D"+numero_filas);
+  sheetMetadatos.getRange("E5:E"+numero_filas).setValues(sheetResumen.getRange("C5:C"+numero_filas).getValues());
+  var rango_nombre = sheetMetadatos.getRange("E1:E"+numero_filas);
+
+  var rule_codigo = SpreadsheetApp.newDataValidation()
+    .requireValueInRange(rango_codigo, true)
+    .setAllowInvalid(false)
+    .build();
+  cell_codigo.setDataValidation(rule_codigo);
+
+  var rule_nombre = SpreadsheetApp.newDataValidation()
+    .requireValueInRange(rango_nombre, true)
+    .setAllowInvalid(false)
+    .build();
+  cell_nombre.setDataValidation(rule_nombre);
+}
+
+function botonReset() {
+  var SS = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = SS.getSheets()[0];
+  
+  sheet.getRange("C2:C7").setValue("");
+  sheet.getRange("B12:K300").setValue("");
+  sheet.getRange("G7").setValue("");
+};
+
+function botonCrearNuevoPT() {
+  var SS = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = SS.getSheets()[0];
+  var codigo = sheet.getRange("C3").getValue();
+
+  var id_directorio_plantilla_PT = "1egxrjTXM2Sm4bqgh3hDuVZ-63Pha7pNv";
+  var directorio_plantilla_PT = DriveApp.getFolderById(id_directorio_plantilla_PT);
+
+  var id_directorio_PT = "1YYMWjuQN1fEZKuP087Em8rN4xbEQVGjU";  
+  var directorio_PT = DriveApp.getFolderById(id_directorio_PT);
+
+  var ficha_creada = copiarFichaACarpeta(codigo, directorio_plantilla_PT, directorio_PT);
+  var SS_creada = SpreadsheetApp.open(ficha_creada);
+  var sheet_creada = SS_creada.getSheets()[0];
+  sheet_creada.getRange("G2").setDataValidation(null);
+  sheet_creada.getRange("F2").setValue("");
+  sheet_creada.getRange("G2").setValue("Ficha creada con éxito");
+  sheet_creada.getRange("H2").setValue("");
+  sheet_creada.getRange("K5").setValue("");
+};
+
+function botonCompletarNyC() {
+  var SS = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = SS.getSheets()[0];
+  var filaInicio = 12;
+
+  // MP
+  var numero_MP = parseInt(sheet.getRange("G9").getValue());
+  if (numero_MP > 0) {
+    var fila_max_MP = numero_MP+(filaInicio-1);
+
+    var cell_codigo_MP = sheet.getRange("F12:F"+fila_max_MP).getValues();  
+    var cell_nombre_MP = sheet.getRange("G12:G"+fila_max_MP).getValues();
+    
+    for (var i = 0; i < cell_codigo_MP.length; i++) {
+      var filita = filaInicio+i;
+      if (cell_codigo_MP[i][0] == "" && cell_nombre_MP[i][0] != "") {
+        sheet.getRange("F"+filita).setValue(buscarCodigoMPoMA(cell_nombre_MP[i][0], true));
+      } else if (cell_codigo_MP[i][0] != "" && cell_nombre_MP[i][0] == "") {
+        sheet.getRange("G"+filita).setValue(buscarNombreMPoMA(cell_codigo_MP[i][0], true));
+      }
+    }
+  }
+
+  // MA
+  var numero_MA = parseInt(sheet.getRange("C9").getValue());
+  if (numero_MA > 0) {
+    var fila_max_MA = numero_MA+(filaInicio-1);
+
+    var cell_codigo_MA = sheet.getRange("B12:B"+fila_max_MA).getValues();  
+    var cell_nombre_MA = sheet.getRange("C12:C"+fila_max_MA).getValues();
+
+    for (var i = 0; i < cell_codigo_MA.length; i++) {
+      var filita = filaInicio+i;
+      if (cell_codigo_MA[i][0] == "" && cell_nombre_MA[i][0] != "") {
+        sheet.getRange("B"+filita).setValue(buscarCodigoMPoMA(cell_nombre_MA[i][0], false));
+      } else if (cell_codigo_MA[i][0] != "" && cell_nombre_MA[i][0] == "") {
+        sheet.getRange("C"+filita).setValue(buscarNombreMPoMA(cell_codigo_MA[i][0], false));
+      }
+    }
+  }
+};
+
+function buscarCodigoMPoMA(nombre, MP) {
+  var SS_MP = SpreadsheetApp.openById("1IM73U1v3U-kfL3HzYasRI3jjSbtYZA8xT8vOgKPmPkQ");  
+  var SS_MA = SpreadsheetApp.openById("1XH4-zFY0X14JuJNohEVx72i1LEkPSbZfL0-VhxN6O3s");  
+  var sheetResumen;
+  if (MP) {
+    sheetResumen = SS_MP.getSheets()[2];
+  } else {
+    sheetResumen = SS_MA.getSheets()[2];
+  }
+
+  var numero_filas = 4+parseInt(sheetResumen.getRange("D2").getValue());
+  var dataNombre = sheetResumen.getRange("C5:C"+numero_filas);
+  var values = dataNombre.getValues();
+
+  var codigo = "";
+
+  for (var i = 0; i < values.length; i++) {
+    if (values[i][0] == nombre) {
+      var fila = 5+i;
+      codigo = sheetResumen.getRange("B"+fila).getValue();
+      break;
+    }
+  }
+
+  return codigo;
+};
+
+function buscarNombreMPoMA(codigo, MP) {
+  var SS_MP = SpreadsheetApp.openById("1IM73U1v3U-kfL3HzYasRI3jjSbtYZA8xT8vOgKPmPkQ");  
+  var SS_MA = SpreadsheetApp.openById("1XH4-zFY0X14JuJNohEVx72i1LEkPSbZfL0-VhxN6O3s");  
+  var sheetResumen;
+  if (MP) {
+    sheetResumen = SS_MP.getSheets()[2];
+  } else {
+    sheetResumen = SS_MA.getSheets()[2];
+  };
+
+  var numero_filas = 4+parseInt(sheetResumen.getRange("D2").getValue());
+  var dataCodigo = sheetResumen.getRange("B5:B"+numero_filas);
+  var values = dataCodigo.getValues();
+
+  var nombre = "";
+
+  for (var i = 0; i < values.length; i++) {
+    if (values[i][0] == codigo) {
+      var fila = 5+i;
+      nombre = sheetResumen.getRange("C"+fila).getValue();
+      break;
+    }
+  }
+
+  return nombre;
+};
+
+function copiarFichaACarpeta(nombre, carpeta_contenedora, carpeta_destino) {
+  var filesIterator = carpeta_contenedora.getFiles();
+
+  while (filesIterator.hasNext()) {
+    var file = filesIterator.next();
+    if (carpeta_destino.getFilesByName(nombre).length > 0) {
+      carpeta_destino.getFilesByName(nombre).setTrashed(true);
+    }
+    return file.makeCopy(nombre, carpeta_destino);
+  }
+}
