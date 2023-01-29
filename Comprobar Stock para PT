@@ -1,0 +1,318 @@
+function createSpreadsheetOpenTrigger() {
+  const ss = SpreadsheetApp.getActive();
+  ScriptApp.newTrigger('alAbrir')
+      .forSpreadsheet(ss)
+      .onOpen()
+      .create();
+}
+
+function createSpreadsheetEditTrigger() {
+  const ss = SpreadsheetApp.getActive();
+  ScriptApp.newTrigger('alPulsarBoton')
+      .forSpreadsheet(ss)
+      .onEdit()
+      .create();
+}
+
+function alPulsarBoton(e) {
+  var sheet = SpreadsheetApp.getActiveSheet();
+  var celdaMensaje = sheet.getRange("E2");
+
+  if (e.range.getA1Notation() == "D2") {
+    if (e.value == "Rellenar Código/Nombre") {
+      celdaMensaje.setValue("Completando Códigos/Nombres que falten...");
+      resetPTYaExistente();
+      botonCompletarNyC();
+    } else if (e.value == "Buscar si hay suficiente MA") {
+      celdaMensaje.setValue("Buscando si hay suficiente MAs...");
+      botonBuscarMA(true);
+    } else if (e.value == "Buscar si hay suficiente MP") {
+      celdaMensaje.setValue("Buscando si hay suficiente MPs...");
+      botonBuscarMP(true);
+    } else if (e.value == "Buscar si hay suficiente MA/MP") {
+      celdaMensaje.setValue("Buscando si hay suficiente MAs/MPs...");
+      botonBuscarMPyMA();
+    } else if (e.value == "Reset") {
+      celdaMensaje.setValue("Reseteando campos...");
+      botonReset(0);
+    }
+    
+    celdaMensaje.setValue("");
+    e.range.setValue("");
+  }
+}
+
+function alAbrir() {
+  resetPTYaExistente();
+};
+
+function resetPTYaExistente() {
+  var id_directorio_PT = "1YYMWjuQN1fEZKuP087Em8rN4xbEQVGjU";  
+  var directorio_PT = DriveApp.getFolderById(id_directorio_PT);
+
+  var SS = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = SS.getSheets()[0];
+  var sheetMetadatos = SS.getSheets()[1];
+
+  var cell_codigo = sheet.getRange("B5:B300");
+  var cell_nombre = sheet.getRange("C5:C300");
+
+  var filesIterator = directorio_PT.getFiles();
+  var numero_filas = 0;
+  var fila_inicio = 2;
+
+  while (filesIterator.hasNext()) {
+    var file = filesIterator.next();
+    var fila = fila_inicio+numero_filas;
+
+    var codigo = file.getName();
+    var nombre = SpreadsheetApp.open(file).getSheets()[0].getRange("C2").getValue();
+    
+    sheetMetadatos.getRange("B"+fila).setValue(codigo);
+    sheetMetadatos.getRange("C"+fila).setValue(nombre);
+    numero_filas += 1;
+  }
+
+  sheetMetadatos.getRange("A2").setValue(numero_filas);
+
+  var fila_final = numero_filas+fila_inicio
+  var rango_codigo = sheetMetadatos.getRange("B2:B"+fila_final);
+  var rango_nombre = sheetMetadatos.getRange("C2:C"+fila_final);
+
+  var rule_codigo = SpreadsheetApp.newDataValidation()
+    .requireValueInRange(rango_codigo, true)
+    .setAllowInvalid(false)
+    .build();
+  cell_codigo.setDataValidation(rule_codigo);
+
+  var rule_nombre = SpreadsheetApp.newDataValidation()
+    .requireValueInRange(rango_nombre, true)
+    .setAllowInvalid(false)
+    .build();
+  cell_nombre.setDataValidation(rule_nombre);
+};
+
+function botonCompletarNyC() {
+  var SS = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = SS.getSheets()[0];
+  var sheetMetadatos = SS.getSheets()[1];
+  var filaInicio = 5;
+
+  // PT
+  var numero_PT = parseInt(sheetMetadatos.getRange("A2").getValue());
+  if (numero_PT > 0) {
+    var fila_max_PT = numero_PT+(filaInicio);
+
+    var cell_codigo_PT = sheet.getRange("B5:B"+fila_max_PT).getValues();  
+    var cell_nombre_PT = sheet.getRange("C5:C"+fila_max_PT).getValues();
+    
+    for (var i = 0; i < cell_codigo_PT.length; i++) {
+      var filita = filaInicio+i;
+      if (cell_codigo_PT[i][0] == "" && cell_nombre_PT[i][0] != "") {
+        sheet.getRange("B"+filita).setValue(buscarCodigoPT(cell_nombre_PT[i][0]));
+      } else if (cell_codigo_PT[i][0] != "" && cell_nombre_PT[i][0] == "") {
+        sheet.getRange("C"+filita).setValue(buscarNombrePT(cell_codigo_PT[i][0]));
+      }
+    }
+  }
+};
+
+function buscarCodigoPT(nombre) {
+  var SS = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetMetadatos = SS.getSheets()[1];
+
+  var numero_filas = 2+parseInt(sheetMetadatos.getRange("A2").getValue());
+  var dataNombre = sheetMetadatos.getRange("C2:C"+numero_filas);
+  var values = dataNombre.getValues();
+
+  var codigo = "";
+
+  for (var i = 0; i < values.length; i++) {
+    if (values[i][0] == nombre) {
+      var fila = 2+i;
+      codigo = sheetMetadatos.getRange("B"+fila).getValue();
+      break;
+    }
+  }
+
+  return codigo;
+};
+
+function buscarNombrePT(codigo) {
+  var SS = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetMetadatos = SS.getSheets()[1];
+
+  var numero_filas = 2+parseInt(sheetMetadatos.getRange("A2").getValue());
+  var dataCodigo = sheetMetadatos.getRange("B2:B"+numero_filas);
+  var values = dataCodigo.getValues();
+
+  var nombre = "";
+
+  for (var i = 0; i < values.length; i++) {
+    if (values[i][0] == codigo) {
+      var fila = 2+i;
+      nombre = sheetMetadatos.getRange("C"+fila).getValue();
+      break;
+    }
+  }
+
+  return nombre;
+};
+
+// 0: todo
+// 1: MA
+// 2: MP
+function botonReset(elQue) {
+  var sheet = SpreadsheetApp.getActiveSheet();
+  if (elQue === 0) {
+    sheet.getRange("B5:F300").setValue("");
+  } else if (elQue === 1) {
+    sheet.getRange("E5:E300").setValue("");
+  } else if (elQue === 2) {
+    sheet.getRange("F5:F300").setValue("");
+  }
+};
+
+function botonBuscarMP(completarNyC) {
+  if (completarNyC) {
+    botonCompletarNyC();
+  }
+
+  botonReset(2);
+  
+  var SS_MP = SpreadsheetApp.openById("1IM73U1v3U-kfL3HzYasRI3jjSbtYZA8xT8vOgKPmPkQ");
+  var sheetResumen = SS_MP.getSheets()[2];
+  var numero_filas_resumen = parseInt(sheetResumen.getRange("D2").getValue());
+  var fila_fin_resumen = numero_filas_resumen + 4;
+  var codigos_resumen = sheetResumen.getRange("A5:B"+fila_fin_resumen).getValues();
+  var cantidades_resumen = sheetResumen.getRange("H5:H"+fila_fin_resumen).getValues();
+
+  var SS = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = SS.getSheets()[0];
+
+  var numero_filas_PT = parseInt(sheet.getRange("B2").getValue());
+  var fila_fin_PT = numero_filas_PT+4;
+  var valores_codigo_PT = sheet.getRange("B5:B"+fila_fin_PT).getValues();
+  var cantidades_codigo_PT = sheet.getRange("D5:D"+fila_fin_PT).getValues();
+
+  var id_directorio_PT = "1YYMWjuQN1fEZKuP087Em8rN4xbEQVGjU";  
+  var directorio_PT = DriveApp.getFolderById(id_directorio_PT);
+
+  for (var i = 0; i < valores_codigo_PT.length; i++) {
+    if (parseFloat(cantidades_codigo_PT[i]) > 0) {
+      var file = directorio_PT.getFilesByName(valores_codigo_PT[i]);
+      if (file.hasNext()) {
+        var SS_PT_individual = SpreadsheetApp.open(file.next());
+        var sheet_PT_individual = SS_PT_individual.getSheets()[0];
+
+        var numero_filas_MP = parseInt(sheet_PT_individual.getRange("G9").getValue())+11;
+        var codigos_MP = sheet_PT_individual.getRange("F12:G"+numero_filas_MP).getValues();
+        var cantidades_MP = sheet_PT_individual.getRange("J12:J"+numero_filas_MP).getValues();
+        var loQueFalta = "";
+
+        for (var j = 0; j < codigos_MP.length; j++) {
+          var cantidad_MP_necesaria = parseFloat(cantidades_MP[j])*parseFloat(cantidades_codigo_PT[i]);
+          var existe = false;
+          if (!isNaN(cantidad_MP_necesaria)) {
+            for (var k = 0; k < codigos_resumen.length; k++) {
+              if (codigos_resumen[k][1] == codigos_MP[j][0]) {
+                existe = true;
+                if (parseFloat(cantidades_resumen[k]) < cantidad_MP_necesaria) {
+                  var cantidadQueFalta = parseFloat(cantidades_resumen[k]) - cantidad_MP_necesaria;
+                  loQueFalta += codigos_resumen[k][0]+" ("+cantidadQueFalta+"); "+String.fromCharCode(10);
+                }
+                break;
+              }
+            }
+          }
+          
+          if (!existe) {
+            loQueFalta += codigos_MP[j][0]+" - "+codigos_MP[j][1]+" (-"+cantidades_MP[j]+"); "+String.fromCharCode(10);
+          }
+        } 
+                
+        var fila_a_poner_info = i+5;
+        if (loQueFalta == "") {
+          sheet.getRange("F"+fila_a_poner_info).setValue("No :)");
+        } else {
+          sheet.getRange("F"+fila_a_poner_info).setValue(loQueFalta);
+        }
+      }
+    }
+  }
+};
+
+function botonBuscarMA(completarNyC) {
+  if (completarNyC) {
+    botonCompletarNyC();
+  }
+
+  botonReset(1);
+  
+  var SS_MA = SpreadsheetApp.openById("1XH4-zFY0X14JuJNohEVx72i1LEkPSbZfL0-VhxN6O3s");
+  var sheetResumen = SS_MA.getSheets()[2];
+  var numero_filas_resumen = parseInt(sheetResumen.getRange("D2").getValue());
+  var fila_fin_resumen = numero_filas_resumen + 4;
+  var codigos_resumen = sheetResumen.getRange("A5:B"+fila_fin_resumen).getValues();
+  var cantidades_resumen = sheetResumen.getRange("H5:H"+fila_fin_resumen).getValues();
+
+  var SS = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = SS.getSheets()[0];
+  
+  var numero_filas_PT = parseInt(sheet.getRange("B2").getValue());
+  var fila_fin_PT = numero_filas_PT+4;
+  var valores_codigo_PT = sheet.getRange("B5:B"+fila_fin_PT).getValues();
+  var cantidades_codigo_PT = sheet.getRange("D5:D"+fila_fin_PT).getValues();
+
+  var id_directorio_PT = "1YYMWjuQN1fEZKuP087Em8rN4xbEQVGjU";  
+  var directorio_PT = DriveApp.getFolderById(id_directorio_PT);
+
+  for (var i = 0; i < valores_codigo_PT.length; i++) {
+    if (parseFloat(cantidades_codigo_PT[i]) > 0) {
+      var file = directorio_PT.getFilesByName(valores_codigo_PT[i]);
+      if (file.hasNext()) {
+        var SS_PT_individual = SpreadsheetApp.open(file.next());
+        var sheet_PT_individual = SS_PT_individual.getSheets()[0];
+
+        var numero_filas_MA = parseInt(sheet_PT_individual.getRange("C9").getValue())+11;
+        var codigos_MA = sheet_PT_individual.getRange("B12:C"+numero_filas_MA).getValues();
+        var cantidades_MA = sheet_PT_individual.getRange("D12:D"+numero_filas_MA).getValues();
+        var loQueFalta = "";
+
+        for (var j = 0; j < codigos_MA.length; j++) {
+          var cantidad_MA_necesaria = parseFloat(cantidades_MA[j])*parseFloat(cantidades_codigo_PT[i]);
+          var existe = false;
+          if (!isNaN(cantidad_MA_necesaria)) {
+            for (var k = 0; k < codigos_resumen.length; k++) {
+              if (codigos_resumen[k][1] == codigos_MA[j][0]) {
+                existe = true;
+                if (parseFloat(cantidades_resumen[k]) < cantidad_MA_necesaria) {
+                  var cantidadQueFalta = parseFloat(cantidades_resumen[k]) - cantidad_MA_necesaria;
+                  loQueFalta += codigos_resumen[k][0]+" ("+cantidadQueFalta+"); "+String.fromCharCode(10);
+                }
+                break;
+              }
+            }
+          }
+          
+          if (!existe) {
+            loQueFalta += codigos_MA[j][0]+" - "+codigos_MA[j][1]+" (-"+cantidades_MA[j]+"); "+String.fromCharCode(10);
+          }
+        } 
+                
+        var fila_a_poner_info = i+5;
+        if (loQueFalta == "") {
+          sheet.getRange("E"+fila_a_poner_info).setValue("No :)");
+        } else {
+          sheet.getRange("E"+fila_a_poner_info).setValue(loQueFalta);
+        }
+      }
+    }
+  }
+};
+
+function botonBuscarMPyMA() {
+  botonCompletarNyC()
+  botonBuscarMA(false);
+  botonBuscarMP(false);
+};
