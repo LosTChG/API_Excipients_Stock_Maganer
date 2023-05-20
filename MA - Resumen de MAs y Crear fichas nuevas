@@ -46,21 +46,32 @@ function alPulsarBoton(e) {
       e.range.setValue("");
     }
   } else if (sheetName == "Resumen MAs") {
-    if (e.range.getA1Notation() == "I2") {
+    if (e.range.getA1Notation() == "I1") {
       if (e.value == "Refrescar Datos") {
         botonActualizarResumen();
-      } else if (e.value == "Refrescar Etiquetas (simple)") {
-        botonActualizarEtiquetasMAs(false,false);
-      } else if (e.value == "Refrescar Etiquetas (con código de envase)") {
-        botonActualizarEtiquetasMAs(false,true);
-      } else if (e.value == "Refrescar Etiquetas (con código de envase y estado)") {
-        botonActualizarEtiquetasMAs(true,true);
       } else if (e.value == "Refrescar Datos de Todos") {
         botonActualizarResumenTODOS();
+      } else if (e.value == "Refrescar Etiquetas (pequeñas 65)") {
+        if (sheet.getRange("I2").getValue() == "Solo código (APROBADOS y CUARENTENA)") {
+          botonActualizarEtiquetasMAs(true,false);
+        } else if (sheet.getRange("I2").getValue() == "Código + Estado (APROBADOS y CUARENTENA)") {
+          botonActualizarEtiquetasMAs(true,true,false);
+        } else if (sheet.getRange("I2").getValue() == "Código + Estado (APROBADOS, CUARENTENA, CADUCADOS y RETIRADOS)") {
+          botonActualizarEtiquetasMAs(true,true,true);
+        }
+      } else if (e.value == "Refrescar Etiquetas (grandes 21)") {
+        if (sheet.getRange("I2").getValue() == "Solo código (APROBADOS y CUARENTENA)") {
+          botonActualizarEtiquetasMAs(false,false);
+        } else if (sheet.getRange("I2").getValue() == "Código + Estado (APROBADOS y CUARENTENA)") {
+          botonActualizarEtiquetasMAs(false,true,false);
+        } else if (sheet.getRange("I2").getValue() == "Código + Estado (APROBADOS, CUARENTENA, CADUCADOS y RETIRADOS)") {
+          botonActualizarEtiquetasMAs(false,true,true);
+        }
       }
       
       e.range.setValue("");
-    } else if (e.range.getA1Notation() == "H2") {
+    } else if (e.range.getA1Notation() == "H1") {
+      sheet.getRange("J1").setValue("");
       sheet.getRange("J2").setValue("");
     }
   }
@@ -71,10 +82,10 @@ function alAbrir() {
   var sheet = SS.getSheets()[1];
   var sheetResumen = SS.getSheets()[2];
 
-  var numeroMAs = parseInt(sheetResumen.getRange("C2").getValue());
+  var numero_max_MA = parseInt(sheetResumen.getRange("C2").getValue());
 
   var cell = sheet.getRange("C2");
-  cell.setValue(numeroMAs+1);
+  cell.setValue(numero_max_MA+1);
 
   resetMAYaExistente();
 };
@@ -85,8 +96,7 @@ function resetMAYaExistente() {
   var sheet = SS.getSheets()[0];
   var sheetResumen = SS.getSheets()[2];
 
-  cell = sheet.getRange("C2");
-  cell.setValue(sheetResumen.getRange("A5").getValue());
+  var cell = sheet.getRange("C2");
 
   var numero_filas = 4+parseInt(sheetResumen.getRange("D2").getValue());
   var rango = sheetResumen.getRange("A5:A"+numero_filas);
@@ -96,6 +106,8 @@ function resetMAYaExistente() {
     .setAllowInvalid(false)
     .build();
   cell.setDataValidation(rule);
+  
+  cell.setValue(sheetResumen.getRange("A5").getValue());
 }
 
 function existeCarpeta(nombre_carpeta) {
@@ -169,13 +181,13 @@ function botonActualizarResumen() {
   var SS = SpreadsheetApp.getActiveSpreadsheet();
   var sheetResumen = SS.getSheets()[2];
 
-  sheetResumen.getRange("J2").setValue("REFRESCANDO...");
+  sheetResumen.getRange("J1").setValue("REFRESCANDO...");
 
-  var codigo = parseInt(sheetResumen.getRange("H2").getValue());
+  var codigo = parseInt(sheetResumen.getRange("H1").getValue());
   if(actualizarResumenMAs(codigo)) {
-    sheetResumen.getRange("J2").setValue("");
+    sheetResumen.getRange("J1").setValue("");
   } else {
-    sheetResumen.getRange("J2").setValue("NO EXISTE ESE CÓDIGO");
+    sheetResumen.getRange("J1").setValue("NO EXISTE ESE CÓDIGO");
 
     // Considerar como eliminado (si existe)
     var fila = buscarFilaEnResumen(codigo);
@@ -201,15 +213,17 @@ function botonActualizarResumenTODOS() {
   var SS = SpreadsheetApp.getActiveSpreadsheet();
   var sheetResumen = SS.getSheets()[2];
 
-  sheetResumen.getRange("J2").setValue("REFRESCANDO... LLEVARÁ BASTANTE RATO");
+  sheetResumen.getRange("J1").setValue("REFRESCANDO... LLEVARÁ BASTANTE RATO");
 
-  var max_codigo = sheetResumen.getRange("C2").getValue();
+  var numero_filas = 4+parseInt(sheetResumen.getRange("D2").getValue());
+  var codigos = sheetResumen.getRange("B5:B"+numero_filas).getValues();
 
-  for (var i = 1;i<=max_codigo;i++) {
-    actualizarResumenMAs(1);
+  for (var i = 0;i<(numero_filas-4);i++) {
+    actualizarResumenMAs(parseInt(codigos[i]));
   }
   
-  sheetResumen.getRange("J2").setValue("");
+  sheetResumen.getRange("I1").setValue("");
+  sheetResumen.getRange("J1").setValue("");
   alAbrir();
 }
 
@@ -220,11 +234,11 @@ function botonActualizarEtiquetasMAs(poner_estado,poner_envase) {
 
   sheetResumen.getRange("J2").setValue("REFRESCANDO...");
 
-  var codigo = parseInt(sheetResumen.getRange("H2").getValue());
+  var codigo = parseInt(sheetResumen.getRange("H1").getValue());
 
   var carpeta = existeCarpeta(codigo);
   if(carpeta != null) {
-    actualizarEtiquetasMAs(carpeta,poner_estado,poner_envase);
+    actualizarEtiquetasMAs(carpeta,etiquetas_pequenas,poner_estado,poner_estado_ampliado);
     sheetResumen.getRange("J2").setValue("");
   } else {
     sheetResumen.getRange("J2").setValue("NO EXISTE ESE CÓDIGO");
@@ -237,8 +251,20 @@ function botonActualizarEtiquetasMAs(poner_estado,poner_envase) {
   }
 }
 
-function actualizarEtiquetasMAs(carpeta_padre, poner_estado, poner_envase) {
-  var documento = carpeta_padre.getFilesByName("Etiquetas 21").next();
+function actualizarEtiquetasMAs(carpeta_padre, etiquetas_pequenas, poner_estado, poner_estado_ampliado) {
+  var documento;
+  var max_celda_row;
+  var tamano_QR;
+  if (etiquetas_pequenas) {
+    documento = carpeta_padre.getFilesByName("Etiquetas 65").next();
+    max_celda_row = 10;
+    tamano_QR = 74;
+  } else {
+    documento = carpeta_padre.getFilesByName("Etiquetas 21").next();
+    max_celda_row = 8;
+    tamano_QR = 132;
+  }
+
   var body = DocumentApp.openById(documento.getId()).getBody();
   var tabla = body.findElement(DocumentApp.ElementType.TABLE).getElement().asTable();
 
@@ -248,86 +274,90 @@ function actualizarEtiquetasMAs(carpeta_padre, poner_estado, poner_envase) {
   var row = tabla.getRow(0);
   var numero_row = 0;
   var numero_celda_row = 0;
-  while(childFolders.hasNext()) {
-    if (numero_celda_row > 8) {
+
+  while(childFolders.hasNext()) {    
+    var carpeta = childFolders.next();
+
+    if (numero_celda_row > max_celda_row) {
       numero_row += 1;
       row = tabla.getRow(numero_row);
       numero_celda_row = 0;
     }
     var celda = row.getCell(numero_celda_row);
-    
-    // QR
     celda.clear();
-    var carpeta = childFolders.next();
-    var archivos = carpeta.getFiles();
-    var qr_encontrado = false;
-    while(archivos.hasNext()) {
-      var archivo_QR = archivos.next();
-      if(archivo_QR.getName() == "QR envase.png") {
-        celda.insertImage(0,archivo_QR.getBlob()).setWidth(120).setHeight(120);
-        celda.removeChild(celda.getChild(1));
-        qr_encontrado = true;
-        break;
-      }
-    }
-    if(!qr_encontrado) {
-      celda.setText("¡Falta generar QR!");
-    }
-    
-    numero_celda_row += 1;
-    celda = celda.getNextSibling().asTableCell();
     
     // Info
-    celda.clear();
     var archivo_ficha = carpeta.getFilesByName("Ficha MA").next();
     var excel_ficha = SpreadsheetApp.open(archivo_ficha);
     var datos_sheet = excel_ficha.getSheets()[1];
-    var codigo = datos_sheet.getRange("C2").getValue();
-    if(poner_estado) {
-      var estado = datos_sheet.getRange("C17").getValue();
+    var codigo = datos_sheet.getRange("C2").getValue();    
+    var estado = datos_sheet.getRange("C17").getValue();
+    if(estado != "ELIMINADO") {
       var caducado = datos_sheet.getRange("D17").getValue();
       if (caducado == "CADUCADO") {
         estado = caducado;
       }
-      var estado_paragrafo = celda.appendParagraph(estado);
-      estado_paragrafo.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
-      estado_paragrafo.editAsText().setBold(true);
-      if (estado == "APROBADO") {
-        estado_paragrafo.editAsText().setBackgroundColor("#b7e1cd");
-      } else if (estado == "CUARENTENA") {
-        estado_paragrafo.editAsText().setBackgroundColor("#fce8b2");
-      } else if (estado == "RETIRADO" || estado == "CADUCADO") {
-        estado_paragrafo.editAsText().setBackgroundColor("#f4c7c3");
-      } else if (estado == "ELIMINADO") {
-        estado_paragrafo.editAsText().setStrikethrough(true);
-      }
-      
-      celda.appendParagraph("").editAsText().setBold(false).setBackgroundColor("#ffffff");
-    }
-    celda.appendParagraph("MA-"+codigo).setAlignment(DocumentApp.HorizontalAlignment.CENTER);
-    if (poner_envase) {
-      celda.appendParagraph("");
 
-      var codigo_envase = datos_sheet.getRange("C3").getValue();
-      celda.appendParagraph(codigo_envase).setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+      if (estado == "APROBADO" || estado == "CUARENTENA") {
+        if (poner_estado) {
+          var estado_paragrafo = celda.appendParagraph(estado);
+          estado_paragrafo.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+          estado_paragrafo.editAsText().setBold(true);
+          if (estado == "APROBADO") {
+            estado_paragrafo.editAsText().setBackgroundColor("#b7e1cd");
+          } else {
+            estado_paragrafo.editAsText().setBackgroundColor("#fce8b2");
+          }
+          celda.appendParagraph("").editAsText().setBold(false).setBackgroundColor("#ffffff");
+        }
+      } else if (estado == "RETIRADO" || estado == "CADUCADO") {
+        if (poner_estado_ampliado) {
+          var estado_paragrafo = celda.appendParagraph(estado);
+          estado_paragrafo.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+          estado_paragrafo.editAsText().setBold(true);
+          estado_paragrafo.editAsText().setBackgroundColor("#f4c7c3");
+          celda.appendParagraph("").editAsText().setBold(false).setBackgroundColor("#ffffff");
+        } else {
+          continue;
+        }
+      } 
+    } else {
+      continue;
     }
+
+    // Código material
+    celda.appendParagraph("MA-"+codigo).setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+    // Código envase
+    celda.appendParagraph("");
+    var codigo_envase = datos_sheet.getRange("C3").getValue();
+    celda.appendParagraph(codigo_envase).setAlignment(DocumentApp.HorizontalAlignment.CENTER);
 
     celda.removeChild(celda.getChild(0));
+    
+    numero_celda_row += 1;
+    celda = celda.getNextSibling().asTableCell();
+    
+    // QR
+    celda.clear();
+    try {
+      var archivo_QR = carpeta.getFilesByName("QR envase.png").next();
+      celda.insertImage(0,archivo_QR.getBlob()).setWidth(tamano_QR).setHeight(tamano_QR);
+      celda.removeChild(celda.getChild(1));
+    } catch(e) {
+      celda.setText("¡Falta generar QR!");
+    }
 
-    numero_celda_row += 2;
+    if (etiquetas_pequenas) {
+      numero_celda_row += 1;
+    } else {
+      numero_celda_row += 2;
+    }
   }
 }
 
 function actualizarResumenMAs(codigo) {
   var SS = SpreadsheetApp.getActiveSpreadsheet();
   var sheetResumen = SS.getSheets()[2];
-
-  // Coger datos que nos interesan
-  var carpeta_padre = existeCarpeta(codigo);
-  if (carpeta_padre == null) {
-    return false;
-  }
-  var childFolders = carpeta_padre.getFolders();
 
   // Coger fila del Resumen
   var fila = buscarFilaEnResumen(codigo);
@@ -336,12 +366,25 @@ function actualizarResumenMAs(codigo) {
     fila = numero_filas+1;
   }
 
-  var nombre;
-  var cas;
-  var proveedor;
-  var referencia;
+  // Coger datos que nos interesan. En caso de que no exista, eliminar fila.
+  var carpeta_padre = existeCarpeta(codigo);
+  if (carpeta_padre == null) {
+    sheetResumen.getRange("B"+fila+":L"+fila).setValue("");
+    var siguienteFila = fila+1;
+    var cosasAMover = sheetResumen.getRange("B"+siguienteFila+":L"+1002);
+    sheetResumen.moveRows(cosasAMover,fila);
+    return false;
+  }
+  var childFolders = carpeta_padre.getFolders();
 
-  var ultima_caducidad = transformarFecha(sheetResumen.getRange(fila,6).getValue());
+  var nombre;
+  var lote_a_utilizar;
+  var proveedor;
+
+  var ultima_caducidad = transformarFecha(sheetResumen.getRange(1,1).getValue());
+  var ultima_caducidad_encontrada = false;
+  var primera_caducidad = transformarFecha(sheetResumen.getRange(2,1).getValue());
+  var primera_caducidad_encontrada = false;
   var stock_disponible_teorico = 0.0;
   var stock_disponible_real = 0.0;
   var estado;
@@ -357,21 +400,18 @@ function actualizarResumenMAs(codigo) {
     if (primera_vez) {
       nombre = datos_sheet.getRange("C5").getValue();
       proveedor = datos_sheet.getRange("C7").getValue();
-      referencia = datos_sheet.getRange("C8").getValue();
 
       // Colocar los datos en la sheetResumen
       sheetResumen.getRange(fila,2).setValue(codigo);
       sheetResumen.getRange(fila,3).setValue(nombre);
       sheetResumen.getRange(fila,4).setValue(proveedor);
-      sheetResumen.getRange(fila,5).setValue(referencia);
 
       primera_vez = false;
     }
 
+    var lote = datos_sheet.getRange("C3").getValue();
+
     var fecha = transformarFecha(datos_sheet.getRange("C15").getValue());
-    if (ultima_caducidad < fecha) {
-      ultima_caducidad = fecha;
-    }
 
     var estado_pre = datos_sheet.getRange("C17").getValue();
     var caducado = datos_sheet.getRange("D17").getValue();
@@ -380,7 +420,22 @@ function actualizarResumenMAs(codigo) {
       if (estado_pre == "APROBADO") {                
         stock_disponible_real += parseFloat(stock_lote);
         stock_disponible_teorico += parseFloat(stock_lote);
+        
+        if (primera_caducidad > fecha) {
+          primera_caducidad = fecha;
+          lote_a_utilizar = lote;
+          primera_caducidad_encontrada = true;
+        }
+            
+        if (ultima_caducidad < fecha) {
+          ultima_caducidad = fecha;
+          ultima_caducidad_encontrada = true;
+        }
       } else if (estado_pre == "CUARENTENA" || estado_pre == "RETIRADO") {
+        stock_disponible_teorico += parseFloat(stock_lote);
+      }
+    } else {
+      if (estado_pre == "CUARENTENA" || estado_pre == "RETIRADO") {
         stock_disponible_teorico += parseFloat(stock_lote);
       }
     }
@@ -396,10 +451,20 @@ function actualizarResumenMAs(codigo) {
     }
   }
 
-  sheetResumen.getRange(fila,6).setValue(ultima_caducidad);
+  if (primera_caducidad_encontrada) {
+    sheetResumen.getRange(fila,5).setValue(primera_caducidad).setNumberFormat("dd/MM/yyyy");
+  } else {
+    sheetResumen.getRange(fila,5).setValue("-");
+  }
+  if (ultima_caducidad_encontrada) {
+    sheetResumen.getRange(fila,6).setValue(ultima_caducidad).setNumberFormat("dd/MM/yyyy");
+  } else {
+    sheetResumen.getRange(fila,6).setValue("-");
+  }
   sheetResumen.getRange(fila,7).setValue(stock_disponible_real);
   sheetResumen.getRange(fila,8).setValue(stock_disponible_teorico);
   sheetResumen.getRange(fila,10).setValue(estado);
+  sheetResumen.getRange(fila,11).setValue(lote_a_utilizar);
     // Link carpeta
   sheetResumen.getRange(fila,12).setValue(carpeta_padre.getUrl());
 
@@ -429,8 +494,8 @@ function botonCrearLoteMA() {
 
   sheet.getRange("D16").setValue("CREANDO NUEVO LOTE...");
 
-  var codigo = sheet.getRange("C2").getValue().substring(0,1);
-
+  var codigo = sheet.getRange("C2").getValue().split(" - ")[0];
+  
   var fila = buscarFilaEnResumen(codigo);
 
   var nombre = sheetResumen.getRange(fila,3).getValue();
@@ -518,8 +583,14 @@ function crearArchivos(codigo, nombre, proveedor, referencia, lote_proveedor, ca
     }
   }
 
+  var numeroFichas;
+  if (modo_inetiquetable == "SÍ") {
+    numeroFichas = 1;
+  } else {
+    numeroFichas = cantidad_bultos;
+  }
 
-  for (let i = 1; i <= cantidad_bultos; i++) {
+  for (let i = 1; i <= numeroFichas; i++) {
     var carpeta_plantilla_MA = DriveApp.getFolderById("1u3FFqTH1y5ugrbp1y-gSk99NlTzdZiNg");
     
     var ano = transformarFecha(fecha_recepcion).getFullYear();
