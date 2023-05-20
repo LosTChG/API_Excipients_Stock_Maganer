@@ -6,10 +6,13 @@ function createSpreadsheetTrigger() {
   }
 
   const SS = SpreadsheetApp.getActive();
-  ScriptApp.newTrigger('alPulsarBoton')
-      .forSpreadsheet(SS)
-      .onEdit()
-      .create();
+
+  if (SS.getName() == "Ficha PT") {
+    ScriptApp.newTrigger('alPulsarBoton')
+        .forSpreadsheet(SS)
+        .onEdit()
+        .create();
+  }
 
   ScriptApp.newTrigger('alAbrir')
       .forSpreadsheet(SS)
@@ -113,7 +116,8 @@ function botonReset() {
   var sheet = SS.getSheets()[0];
   
   sheet.getRange("C2:C7").setValue("");
-  sheet.getRange("B12:K300").setValue("");
+  sheet.getRange("B12:H300").setValue("");
+  sheet.getRange("J12:J300").setValue("");
   sheet.getRange("G7").setValue("");
 };
 
