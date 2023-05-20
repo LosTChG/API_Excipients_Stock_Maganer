@@ -54,8 +54,8 @@ function resetPTYaExistente() {
   var sheet = SS.getSheets()[0];
   var sheetMetadatos = SS.getSheets()[1];
 
-  var cell_codigo = sheet.getRange("B5:B300");
-  var cell_nombre = sheet.getRange("C5:C300");
+  var cell_codigo = sheet.getRange("B7:B300");
+  var cell_nombre = sheet.getRange("C7:C300");
 
   var filesIterator = directorio_PT.getFiles();
   var numero_filas = 0;
@@ -96,21 +96,21 @@ function botonCompletarNyC() {
   var SS = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = SS.getSheets()[0];
   var sheetMetadatos = SS.getSheets()[1];
-  var filaInicio = 5;
+  var filaInicio = 7;
 
   // PT
   var numero_PT = parseInt(sheetMetadatos.getRange("A2").getValue());
   if (numero_PT > 0) {
     var fila_max_PT = numero_PT+(filaInicio);
 
-    var cell_codigo_PT = sheet.getRange("B5:B"+fila_max_PT).getValues();  
-    var cell_nombre_PT = sheet.getRange("C5:C"+fila_max_PT).getValues();
+    var cell_codigo_PT = sheet.getRange("B7:B"+fila_max_PT).getValues();  
+    var cell_nombre_PT = sheet.getRange("C7:C"+fila_max_PT).getValues();
     
     for (var i = 0; i < cell_codigo_PT.length; i++) {
       var filita = filaInicio+i;
       if (cell_codigo_PT[i][0] == "" && cell_nombre_PT[i][0] != "") {
         sheet.getRange("B"+filita).setValue(buscarCodigoPT(cell_nombre_PT[i][0]));
-      } else if (cell_codigo_PT[i][0] != "" && cell_nombre_PT[i][0] == "") {
+      } else if (cell_codigo_PT[i][0] != "") {
         sheet.getRange("C"+filita).setValue(buscarNombrePT(cell_codigo_PT[i][0]));
       }
     }
@@ -121,7 +121,7 @@ function buscarCodigoPT(nombre) {
   var SS = SpreadsheetApp.getActiveSpreadsheet();
   var sheetMetadatos = SS.getSheets()[1];
 
-  var numero_filas = 2+parseInt(sheetMetadatos.getRange("A2").getValue());
+  var numero_filas = 1+parseInt(sheetMetadatos.getRange("A2").getValue());
   var dataNombre = sheetMetadatos.getRange("C2:C"+numero_filas);
   var values = dataNombre.getValues();
 
@@ -142,7 +142,7 @@ function buscarNombrePT(codigo) {
   var SS = SpreadsheetApp.getActiveSpreadsheet();
   var sheetMetadatos = SS.getSheets()[1];
 
-  var numero_filas = 2+parseInt(sheetMetadatos.getRange("A2").getValue());
+  var numero_filas = 1+parseInt(sheetMetadatos.getRange("A2").getValue());
   var dataCodigo = sheetMetadatos.getRange("B2:B"+numero_filas);
   var values = dataCodigo.getValues();
 
@@ -165,11 +165,14 @@ function buscarNombrePT(codigo) {
 function botonReset(elQue) {
   var sheet = SpreadsheetApp.getActiveSheet();
   if (elQue === 0) {
-    sheet.getRange("B5:F300").setValue("");
+    sheet.getRange("B7:F300").setValue("");
+    sheet.getRange("E5:F5").setValue("");
   } else if (elQue === 1) {
-    sheet.getRange("E5:E300").setValue("");
+    sheet.getRange("E7:E300").setValue("");
+    sheet.getRange("E5").setValue("");
   } else if (elQue === 2) {
-    sheet.getRange("F5:F300").setValue("");
+    sheet.getRange("F7:F300").setValue("");
+    sheet.getRange("F5").setValue("");
   }
 };
 
@@ -191,12 +194,14 @@ function botonBuscarMP(completarNyC) {
   var sheet = SS.getSheets()[0];
 
   var numero_filas_PT = parseInt(sheet.getRange("B2").getValue());
-  var fila_fin_PT = numero_filas_PT+4;
-  var valores_codigo_PT = sheet.getRange("B5:B"+fila_fin_PT).getValues();
-  var cantidades_codigo_PT = sheet.getRange("D5:D"+fila_fin_PT).getValues();
+  var fila_fin_PT = numero_filas_PT+6;
+  var valores_codigo_PT = sheet.getRange("B7:B"+fila_fin_PT).getValues();
+  var cantidades_codigo_PT = sheet.getRange("D7:D"+fila_fin_PT).getValues();
 
   var id_directorio_PT = "1YYMWjuQN1fEZKuP087Em8rN4xbEQVGjU";  
   var directorio_PT = DriveApp.getFolderById(id_directorio_PT);
+
+  var diccionario_MP = [];
 
   for (var i = 0; i < valores_codigo_PT.length; i++) {
     if (parseFloat(cantidades_codigo_PT[i]) > 0) {
@@ -213,7 +218,14 @@ function botonBuscarMP(completarNyC) {
         for (var j = 0; j < codigos_MP.length; j++) {
           var cantidad_MP_necesaria = parseFloat(cantidades_MP[j])*parseFloat(cantidades_codigo_PT[i]);
           var existe = false;
+
           if (!isNaN(cantidad_MP_necesaria)) {
+            // Para el Total
+            if (diccionario_MP[parseInt(codigos_MP[j][0])] == undefined) {
+              diccionario_MP[parseInt(codigos_MP[j][0])] = cantidad_MP_necesaria;
+            } else {
+              diccionario_MP[parseInt(codigos_MP[j][0])] += cantidad_MP_necesaria;
+            }
             for (var k = 0; k < codigos_resumen.length; k++) {
               if (codigos_resumen[k][1] == codigos_MP[j][0]) {
                 existe = true;
@@ -227,11 +239,11 @@ function botonBuscarMP(completarNyC) {
           }
           
           if (!existe) {
-            loQueFalta += codigos_MP[j][0]+" - "+codigos_MP[j][1]+" (-"+cantidades_MP[j]+"); "+String.fromCharCode(10);
+            loQueFalta += codigos_MP[j][0]+" - "+codigos_MP[j][1]+" (-"+cantidad_MP_necesaria+"); "+String.fromCharCode(10);
           }
         } 
                 
-        var fila_a_poner_info = i+5;
+        var fila_a_poner_info = i+7;
         if (loQueFalta == "") {
           sheet.getRange("F"+fila_a_poner_info).setValue("No :)");
         } else {
@@ -240,6 +252,35 @@ function botonBuscarMP(completarNyC) {
       }
     }
   }
+
+  // Total
+  var loQueFaltaTotal = "";
+  for (var i = 0; i < diccionario_MP.length; i++) {
+    if (diccionario_MP[i] != undefined) {
+      var existe = false;
+
+      for (var k = 0; k < codigos_resumen.length; k++) {
+        if (parseInt(codigos_resumen[k][1]) == i) {
+          existe = true;
+          if (parseFloat(cantidades_resumen[k]) < diccionario_MP[i]) {
+            var cantidadQueFalta = parseFloat(cantidades_resumen[k]) - diccionario_MP[i];
+            loQueFaltaTotal += codigos_resumen[k][0]+" ("+cantidadQueFalta+"); "+String.fromCharCode(10);
+          }
+          break;
+        }        
+      }
+      
+      if (!existe) {
+        loQueFaltaTotal += i+" - (-"+diccionario_MP[i]+"); "+String.fromCharCode(10);
+      }
+    }
+  }
+
+  if (loQueFaltaTotal == "") {
+    sheet.getRange("F5").setValue("Nada :)");
+  } else {
+    sheet.getRange("F5").setValue(loQueFaltaTotal);
+  } 
 };
 
 function botonBuscarMA(completarNyC) {
@@ -260,12 +301,14 @@ function botonBuscarMA(completarNyC) {
   var sheet = SS.getSheets()[0];
   
   var numero_filas_PT = parseInt(sheet.getRange("B2").getValue());
-  var fila_fin_PT = numero_filas_PT+4;
-  var valores_codigo_PT = sheet.getRange("B5:B"+fila_fin_PT).getValues();
-  var cantidades_codigo_PT = sheet.getRange("D5:D"+fila_fin_PT).getValues();
+  var fila_fin_PT = numero_filas_PT+6;
+  var valores_codigo_PT = sheet.getRange("B7:B"+fila_fin_PT).getValues();
+  var cantidades_codigo_PT = sheet.getRange("D7:D"+fila_fin_PT).getValues();
 
   var id_directorio_PT = "1YYMWjuQN1fEZKuP087Em8rN4xbEQVGjU";  
   var directorio_PT = DriveApp.getFolderById(id_directorio_PT);
+
+  var diccionario_MA = [];
 
   for (var i = 0; i < valores_codigo_PT.length; i++) {
     if (parseFloat(cantidades_codigo_PT[i]) > 0) {
@@ -282,7 +325,15 @@ function botonBuscarMA(completarNyC) {
         for (var j = 0; j < codigos_MA.length; j++) {
           var cantidad_MA_necesaria = parseFloat(cantidades_MA[j])*parseFloat(cantidades_codigo_PT[i]);
           var existe = false;
+
           if (!isNaN(cantidad_MA_necesaria)) {
+            // Para el Total
+            if (diccionario_MA[parseInt(codigos_MA[j][0])] == undefined) {
+              diccionario_MA[parseInt(codigos_MA[j][0])] = cantidad_MA_necesaria;
+            } else {
+              diccionario_MA[parseInt(codigos_MA[j][0])] += cantidad_MA_necesaria;
+            }
+
             for (var k = 0; k < codigos_resumen.length; k++) {
               if (codigos_resumen[k][1] == codigos_MA[j][0]) {
                 existe = true;
@@ -296,11 +347,11 @@ function botonBuscarMA(completarNyC) {
           }
           
           if (!existe) {
-            loQueFalta += codigos_MA[j][0]+" - "+codigos_MA[j][1]+" (-"+cantidades_MA[j]+"); "+String.fromCharCode(10);
+            loQueFalta += codigos_MA[j][0]+" - "+codigos_MA[j][1]+" (-"+cantidad_MA_necesaria+"); "+String.fromCharCode(10);
           }
         } 
                 
-        var fila_a_poner_info = i+5;
+        var fila_a_poner_info = i+7;
         if (loQueFalta == "") {
           sheet.getRange("E"+fila_a_poner_info).setValue("No :)");
         } else {
@@ -309,6 +360,35 @@ function botonBuscarMA(completarNyC) {
       }
     }
   }
+
+  // Total
+  var loQueFaltaTotal = "";
+  for (var i = 0; i < diccionario_MA.length; i++) {
+    if (diccionario_MA[i] != undefined) {
+      var existe = false;
+
+      for (var k = 0; k < codigos_resumen.length; k++) {
+        if (parseInt(codigos_resumen[k][1]) == i) {
+          existe = true;
+          if (parseFloat(cantidades_resumen[k]) < diccionario_MA[i]) {
+            var cantidadQueFalta = parseFloat(cantidades_resumen[k]) - diccionario_MA[i];
+            loQueFaltaTotal += codigos_resumen[k][0]+" ("+cantidadQueFalta+"); "+String.fromCharCode(10);
+          }
+          break;
+        }        
+      }
+      
+      if (!existe) {
+        loQueFaltaTotal += i+" - (-"+diccionario_MA[i]+"); "+String.fromCharCode(10);
+      }
+    }
+  }
+
+  if (loQueFaltaTotal == "") {
+    sheet.getRange("E5").setValue("Nada :)");
+  } else {
+    sheet.getRange("E5").setValue(loQueFaltaTotal);
+  } 
 };
 
 function botonBuscarMPyMA() {
